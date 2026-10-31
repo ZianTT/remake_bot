@@ -34,6 +34,7 @@ import org.telegram.telegrambots.meta.api.objects.ReplyParameters
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto
 import org.telegram.telegrambots.meta.api.objects.message.Message
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /** Telegram groups at most this many photos into one album. */
 private const val MAX_ALBUM_SIZE = 10
@@ -178,7 +179,7 @@ class MediaSender(
             .url("https://api.telegram.org/bot$botToken/sendMediaGroup")
             .post(body.build())
             .build()
-        HttpRequest.client.newCall(request).execute().use { response ->
+        liveAlbumClient.newCall(request).execute().use { response ->
             check(response.isSuccessful) {
                 "Telegram Live Photo 相册发送失败 (HTTP ${response.code}): ${response.body.string().take(200)}"
             }
@@ -245,6 +246,13 @@ class MediaSender(
 
     companion object {
         private val logger = KotlinLogging.logger("MediaSender")
+
+        private val liveAlbumClient = HttpRequest.client.newBuilder()
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(2, TimeUnit.MINUTES)
+            .retryOnConnectionFailure(false)
+            .build()
 
         /**
          * Namespaced by platform, since ids of different platforms may collide and a collision would
